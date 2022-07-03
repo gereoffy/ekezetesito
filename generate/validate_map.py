@@ -35,13 +35,32 @@ def remove_accents(input_str):
 # elés tészt lész
 wordmap=pickle.load(open("wordmap.pck","rb"))
 wpairs=pickle.load(open("wordpairs.pck","rb"))
+#wpairs={}
+print(len(wordmap),len(wpairs))
+
 #print(wordmap["eles"])
 #print(wordmap["teszt"])
 #print(wordmap["lesz"])
 
+cnt_all=0
+cnt_alt1=0
+cnt_alt2=0
+cnt_alter=0
+cnt_found=0
+cnt_good1=0
+cnt_bad1=0
+cnt_gooda1=0
+cnt_gooda2=0
+cnt_bada=0
+cnt_goodp1=0
+cnt_goodp2=0
+cnt_badp=0
+cnt_notfound=0
+cnt_same=0
+
 #fo=open("test.out","wt")
 lastword="NoNe"
-for line in sys.stdin: #open("test.txt","rt"):
+for line in open("test.txt","rt"):
     newline=[]
     for w in line.split():
         nw=w
@@ -51,11 +70,15 @@ for line in sys.stdin: #open("test.txt","rt"):
         if not w or len(w)<2:
             newline.append(nw)
             continue
-        l=w.strip().lower()
+        l=remove_accents(w).strip().lower()
+        w=w.strip().lower()
+        cnt_all+=1
         if l in wordmap:
+            cnt_found+=1
             uj=wordmap[l]
             try:
                 w1,w2=uj.split("|")
+                cnt_alter+=1
                 try:
                     pc1=wpairs[lastword+"+"+w1]
                 except:
@@ -65,13 +88,28 @@ for line in sys.stdin: #open("test.txt","rt"):
                 except:
                     pc2=1
                 if pc1>10*pc2:
-                    uj="+"+w1
+                    cnt_alt1+=1
+                    if w==w1: cnt_goodp1+=1
+                    else: cnt_badp+=1
+                    uj=w1
                 elif pc2>10*pc1:
-                    uj="++"+w2
+                    cnt_alt2+=1
+                    if w==w2: cnt_goodp2+=1
+                    else: cnt_badp+=1
+                    uj=w2
                 elif pc2>pc1:
                     uj=w2+"|"+w1 # sokkal valoszinubb a 2. alak...
+                    if w==w2: cnt_gooda1+=1
+                    elif w==w1: cnt_gooda2+=1
+                    else: cnt_bada+=1
+                else:
+                    if w==w1: cnt_gooda1+=1
+                    elif w==w2: cnt_gooda2+=1
+                    else: cnt_bada+=1
             except:
-                pass
+                if w==uj: cnt_good1+=1
+                else: cnt_bad1+=1
+#                pass
             if l in nw:
                 nw=nw.replace(l,uj)
             elif l in nw.lower():
@@ -80,8 +118,27 @@ for line in sys.stdin: #open("test.txt","rt"):
                 nw=w.replace(l,uj)
             lastword=uj
         else:
+            cnt_notfound+=1
+            if l==w: cnt_same+=1
             lastword=l
         newline.append(nw)
     #fo.write(" ".join(newline)+"\n")
     #fo.flush()
-    print(" ".join(newline))
+#    print(" ".join(newline))
+
+
+cnt_good=cnt_good1+cnt_gooda1+cnt_gooda2+cnt_goodp1+cnt_goodp2
+print("Counters:  ALL=%d  found=%d (%d multi)  good=%d  same=%d  notfound=%d"%(cnt_all,cnt_found,cnt_alter,cnt_good,cnt_same,cnt_notfound))
+
+# Counters:  ALL=249405  found=128124 (14808 multi)  good=127086  same=117573  notfound=121281
+#print("Stats:  good: %d of %d found,  rate: %5.3f %%"%(cnt_good,cnt_found,100.0*cnt_good/cnt_found))
+
+print("Hits:  1:1=%d (bad:%d)  pair:%d/%d (bad:%d)  alternatives:%d/%d (bad:%d)"%(cnt_good1,cnt_bad1,  cnt_goodp1,cnt_goodp2,cnt_badp,  cnt_gooda1,cnt_gooda2,cnt_bada))
+
+
+print("Stats:      found: %d  good: %d  bad: %d = %5.3f %%"%(cnt_found,cnt_good,cnt_found-cnt_good,100.0*(cnt_found-cnt_good)/cnt_found))
+print("Stats:  not found: %d  same: %d  bad: %d = %5.3f %%"%(cnt_notfound,cnt_same,cnt_notfound-cnt_same,100.0*(cnt_notfound-cnt_same)/cnt_notfound))
+print("Total:  %5.3f %%"%( 100.0*(cnt_good+cnt_same)/cnt_all))
+
+
+
