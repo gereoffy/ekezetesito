@@ -44,7 +44,7 @@ lcnt=0
 skip=0
 skip2=0
 
-redlim=2000000
+redlim=5000000
 redw=1
 
 redlim2=10000000

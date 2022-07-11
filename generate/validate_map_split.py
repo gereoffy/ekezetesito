@@ -2,7 +2,6 @@
 
 import sys
 import pickle
-import re
 
 confusables={}
 
@@ -36,13 +35,33 @@ def remove_accents(input_str):
 # elés tészt lész
 wordmap=pickle.load(open("wordmap.pck","rb"))
 wpairs=pickle.load(open("wordpairs.pck","rb"))
+#wpairs={}
+print(len(wordmap),len(wpairs))
+
 #print(wordmap["eles"])
 #print(wordmap["teszt"])
 #print(wordmap["lesz"])
 
+cnt_all=0
+cnt_alt1=0
+cnt_alt2=0
+cnt_alter=0
+cnt_found=0
+cnt_good1=0
+cnt_bad1=0
+cnt_gooda1=0
+cnt_gooda2=0
+cnt_bada=0
+cnt_goodp1=0
+cnt_goodp2=0
+cnt_badp=0
+cnt_notfound=0
+cnt_same=0
+cnt_split=0
+
 #fo=open("test.out","wt")
 lastword="NoNe"
-for line in sys.stdin: #open("test.txt","rt"):
+for line in open("test.txt","rt"):
 
     # fix unicode 
     line=unicodedata.normalize('NFC', line)
@@ -66,14 +85,13 @@ for line in sys.stdin: #open("test.txt","rt"):
       # skip whitespace
       while p<len(line):
         c=line[p]
-#        for c in ',.!?:;/()[]{}„”‘’“–»«': w=w.replace(c," ") # fixme
         if isalpha(c): break
         p+=1
         newline+=c
 
 #      print(p)
 #      print(newline)
-      
+
       if line[p:p+7] in ["http://","https:/"]:
         # skip url
         q=p
@@ -100,12 +118,28 @@ for line in sys.stdin: #open("test.txt","rt"):
         newline+=w
       else:
         # process word:
+
         nw=w
-        l=w.lower()
-        if l in wordmap:
+        l=remove_accents(w).lower()
+
+        w=w.lower()
+        lwiter=[(l,w)]
+        ws=w.split("-")
+        if not l in wordmap and len(ws)>1 and len(ws[1])>3:
+            lwiter=zip(l.split("-"),ws)
+            cnt_split+=1
+            if l!=w: print(w)
+#            print(list(lwiter))
+
+        for l,w in lwiter:
+
+          cnt_all+=1
+          if l in wordmap:
+            cnt_found+=1
             uj=wordmap[l]
             try:
                 w1,w2=uj.split("|")
+                cnt_alter+=1
                 try:
                     pc1=wpairs[lastword+"+"+w1]
                 except:
@@ -115,22 +149,59 @@ for line in sys.stdin: #open("test.txt","rt"):
                 except:
                     pc2=1
                 if pc1>10*pc2:
-                    uj="+"+w1
+                    cnt_alt1+=1
+                    if w==w1: cnt_goodp1+=1
+                    else: cnt_badp+=1
+                    uj=w1
                 elif pc2>10*pc1:
-                    uj="++"+w2
+                    cnt_alt2+=1
+                    if w==w2: cnt_goodp2+=1
+                    else: cnt_badp+=1
+                    uj=w2
                 elif pc2>pc1:
                     uj=w2+"|"+w1 # sokkal valoszinubb a 2. alak...
+                    if w==w2: cnt_gooda1+=1
+                    elif w==w1: cnt_gooda2+=1
+                    else: cnt_bada+=1
+                else:
+                    if w==w1: cnt_gooda1+=1
+                    elif w==w2: cnt_gooda2+=1
+                    else: cnt_bada+=1
             except:
-                pass
+                if w==uj: cnt_good1+=1
+                else: cnt_bad1+=1
+#                pass
+            if l in nw:
+                nw=nw.replace(l,uj)
+            elif l in nw.lower():
+                nw=nw.lower().replace(l,uj)
+            else:
+                nw=w.replace(l,uj)
             lastword=uj
-            if l==w: nw=uj
-            elif l.upper()==w: nw=uj.upper()
-            else: nw=uj[0].upper()+uj[1:] # capitalise hack
-        else:
+          else:
+            cnt_notfound+=1
+            if l==w: cnt_same+=1
+#            else: print(nw,w)
             lastword=l
-        newline+=nw
 
+        newline+=nw
     #fo.write(" ".join(newline)+"\n")
     #fo.flush()
+#    print(" ".join(newline))
 
-    print(newline,end='')
+
+cnt_good=cnt_good1+cnt_gooda1+cnt_gooda2+cnt_goodp1+cnt_goodp2
+print("Counters:  ALL=%d  found=%d (%d multi)  good=%d  same=%d  notfound=%d  split=%d"%(cnt_all,cnt_found,cnt_alter,cnt_good,cnt_same,cnt_notfound,cnt_split))
+
+# Counters:  ALL=249405  found=128124 (14808 multi)  good=127086  same=117573  notfound=121281
+#print("Stats:  good: %d of %d found,  rate: %5.3f %%"%(cnt_good,cnt_found,100.0*cnt_good/cnt_found))
+
+print("Hits:  1:1=%d (bad:%d)  pair:%d/%d (bad:%d)  alternatives:%d/%d (bad:%d)"%(cnt_good1,cnt_bad1,  cnt_goodp1,cnt_goodp2,cnt_badp,  cnt_gooda1,cnt_gooda2,cnt_bada))
+
+
+print("Stats:      found: %d  good: %d  bad: %d = %5.3f %%"%(cnt_found,cnt_good,cnt_found-cnt_good,100.0*(cnt_found-cnt_good)/cnt_found))
+print("Stats:  not found: %d  same: %d  bad: %d = %5.3f %%"%(cnt_notfound,cnt_same,cnt_notfound-cnt_same,100.0*(cnt_notfound-cnt_same)/cnt_notfound))
+print("Total:  %5.3f %%"%( 100.0*(cnt_good+cnt_same)/cnt_all))
+
+
+

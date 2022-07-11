@@ -61,17 +61,66 @@ cnt_same=0
 #fo=open("test.out","wt")
 lastword="NoNe"
 for line in open("test.txt","rt"):
-    newline=[]
-    for w in line.split():
+
+    # fix unicode 
+    line=unicodedata.normalize('NFC', line)
+    line=line.replace("à","á") # ehh
+    line=line.replace("è","é") # ehh
+    line=line.replace("î","í") # ehh
+    line=line.replace("ò","ó") # ehh
+    line=line.replace("õ","ő") # ehh
+    line=line.replace("ô","ő") # ehh
+    line=line.replace("û","ű") # ehh
+
+    def isalpha(c):
+        if c in "-_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz": return True
+        if c in ',.!?:;/()[]{}„”‘’“–»«': return False
+        return ord(c)>=128
+
+    newline=""
+    p=0
+    while p<len(line):
+
+      # skip whitespace
+      while p<len(line):
+        c=line[p]
+        if isalpha(c): break
+        p+=1
+        newline+=c
+
+#      print(p)
+#      print(newline)
+
+      if line[p:p+7] in ["http://","https:/"]:
+        # skip url
+        q=p
+        while p<len(line) and not line[p] in "\"'] \t\n": p+=1
+#        print("URL: "+line[q:p])
+        newline+=line[q:p]
+        continue
+
+      # read next word:
+      w=""
+      while p<len(line):
+        c=line[p]
+        if not isalpha(c): break
+        p+=1
+        w+=c
+
+#      print(p)
+#      print(w)
+
+#      print(p,newline,w)
+#      break
+
+      if not w or len(w)<2:
+        newline+=w
+      else:
+        # process word:
+
         nw=w
-        for c in ',.!?:;/()[]{}„”‘’“–»«': w=w.replace(c," ") # fixme
-        w=w.replace("õ","ő")
-        w=unicodedata.normalize('NFKC', w)
-        if not w or len(w)<2:
-            newline.append(nw)
-            continue
-        l=remove_accents(w).strip().lower()
-        w=w.strip().lower()
+        l=remove_accents(w).lower()
+        w=w.lower()
         cnt_all+=1
         if l in wordmap:
             cnt_found+=1
@@ -120,8 +169,9 @@ for line in open("test.txt","rt"):
         else:
             cnt_notfound+=1
             if l==w: cnt_same+=1
+            else: print(nw)
             lastword=l
-        newline.append(nw)
+        newline+=nw
     #fo.write(" ".join(newline)+"\n")
     #fo.flush()
 #    print(" ".join(newline))
