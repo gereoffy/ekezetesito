@@ -125,10 +125,10 @@ for line in open("test.txt","rt"):
         w=w.lower()
         lwiter=[(l,w)]
         ws=w.split("-")
-        if not l in wordmap and len(ws)>1 and len(ws[1])>3:
+        if not l in wordmap and len(ws)>1 and len(ws[1])>=5:
             lwiter=zip(l.split("-"),ws)
             cnt_split+=1
-            if l!=w: print(w)
+#            if l!=w: print(w)
 #            print(list(lwiter))
 
         for l,w in lwiter:

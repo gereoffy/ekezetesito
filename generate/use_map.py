@@ -100,9 +100,20 @@ for line in sys.stdin: #open("test.txt","rt"):
         newline+=w
       else:
         # process word:
-        nw=w
-        l=w.lower()
-        if l in wordmap:
+
+        if w[0]=='-':
+          newline+=w[0]
+          w=w[1:]
+
+        ws=w.split("-")
+        nw2=[]
+
+        for w in ws if len(ws)==2 and (not ws[1] or len(ws[1])>=5) else [w]:
+#          print(w)
+          nw=w
+          l=w.lower()
+
+          if l and l in wordmap:
             uj=wordmap[l]
             try:
                 w1,w2=uj.split("|")
@@ -115,9 +126,9 @@ for line in sys.stdin: #open("test.txt","rt"):
                 except:
                     pc2=1
                 if pc1>10*pc2:
-                    uj="+"+w1
+                    uj=w1
                 elif pc2>10*pc1:
-                    uj="++"+w2
+                    uj=w2
                 elif pc2>pc1:
                     uj=w2+"|"+w1 # sokkal valoszinubb a 2. alak...
             except:
@@ -126,9 +137,11 @@ for line in sys.stdin: #open("test.txt","rt"):
             if l==w: nw=uj
             elif l.upper()==w: nw=uj.upper()
             else: nw=uj[0].upper()+uj[1:] # capitalise hack
-        else:
+          else:
             lastword=l
-        newline+=nw
+          nw2.append(nw)
+
+        newline+="-".join(nw2)
 
     #fo.write(" ".join(newline)+"\n")
     #fo.flush()

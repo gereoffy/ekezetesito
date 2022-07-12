@@ -43,6 +43,7 @@ wpairs={}
 lcnt=0
 skip=0
 skip2=0
+skip3=0
 
 redlim=5000000
 redw=1
@@ -50,12 +51,17 @@ redw=1
 redlim2=10000000
 redw2=1
 
+def isalpha(c):
+    if c in "-_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz": return True
+    if c in ',.!?:;/()[]{}„”‘’“–»«': return False
+    return ord(c)>=192 and ord(c)<688  # 0x21F
+
 for fnev in os.listdir("TXT"):
   print("\n"+fnev)
   for line in open("TXT/"+fnev,"rt",encoding="utf-8",errors="ignore"):
     lcnt+=1
     if (lcnt%1000)==0:
-      sys.stderr.write("\r%10d   words=%d  pairs=%d  skip=%d/%d"%(lcnt,len(wcount),len(wpairs),skip,skip2))
+      sys.stderr.write("\r%10d   words=%d  pairs=%d  skip=%d/%d/%d"%(lcnt,len(wcount),len(wpairs),skip,skip2,skip3))
       sys.stderr.flush()
 
       if len(wcount)>redlim:
@@ -98,38 +104,73 @@ for fnev in os.listdir("TXT"):
     except:
         pass
 
+    if "http://" in line or "https://" in line or "mailto:" in line:
+        skip3+=1
+        continue
+
 #    line2=remove_accents(line)
 #    if line==line2:
 #        skip+=1
 #        continue
 
-    for c in '"\',.!?:;/()[]{}„”‘’“–»«':
-        if c in line: line=line.replace(c," ") # fixme
+    line2=""
+    lastc=" "
+    for c in line:
+        if isalpha(c): line2+=c
+        else:
+            c=" "
+            if c!=lastc: line2+=c
+        lastc=c
+    line=line2.strip().lower()
+
+#    print(line.split())
+
+#    for c in '"\',.!?:;/()[]{}„”‘’“–»«':
+#        if c in line2: line2=line.replace(c," ") # fixme
 
     # ekezettel irt?
-    ecnt=0
+    ecnt=[]
+    ocnt=0
 #    wcnt=0
 #    line2=[]
-    for w in line.lower().split():
+    for w in line.split():
 #        wcnt+=1
-        w=w.strip()
-        if w in wordmap:
-            if not "|" in wordmap[w]:
-                ecnt+=1
+#        w=w.strip()
+        w=w.strip(" -\t\n")
+        try:
+            ww=wordmap[w]
+            if not "|" in ww or not w in ww:  # ha csak 1 alak van, vagy nem szerepel az ekezet nelkuli egyik alakban sem
+                if not w in ecnt: ecnt.append(w)
+#            else: ocnt+=1
+        except:
+        
+            try:
+                lineb=line.encode('ASCII')
+            except:
+                ocnt+=1
+                
 #                w="{"+w+"}"
 #        line2.append(w)
 #    if ecnt>wcnt/5: skip2+=1 # ha a szavak legalabb 5-ode ekezet nelkul van irva...
-    if ecnt>=5:  # ha legalabb 5 szo ugy van irva, hogy tudjuk 1:1-ben van ekezetes megfeleloje...
+    if len(ecnt)>=3 or ocnt<10:  # ha legalabb 5 szo ugy van irva, hogy tudjuk 1:1-ben van ekezetes megfeleloje...
         skip2+=1
-#        print(line.strip()[:160])
-#        print( (" ".join(line2))[:160] )
+        #if len(ecnt)>5 and ocnt>20: 
+#        print(len(ecnt),ocnt,line)
+#         print(line.strip()[:160])
+#        print( " ".join(ecnt) )
         continue
 
+
     lastw=None
-    for w in line.split():
-        w=w.strip().lower()
-        if len(w)<2 or len(w)>20: continue
+    for ww in line.split():
+      ww=ww.strip(" -\t\n")
+      if len(ww)<2 or len(ww)>32: continue
+
+      ws=ww.split("-")
+      for w in ws if len(ws)==2 and len(ws[1])>=5 else [ww]:
+
         l=remove_accents(w)
+#        print(l,w)
         try:
             wcount[l]+=1
             try:
@@ -138,19 +179,20 @@ for fnev in os.listdir("TXT"):
                 walias[l][w]=1
             # ha ez egy gyakori szo, es az elozo is az, megjegyezzuk a part!
             if wcount[l]>100:
-                if lastw:
+                if lastw: # in wcount and wcount[lastw]>100:
                   try:
                     wpairs[lastw+"+"+w]+=1
                   except:
                     wpairs[lastw+"+"+w]=1
                 lastw=w
-            else:
-                lastw=None
+            else: lastw=None
         except:
             wcount[l]=1
             walias[l]={}
             walias[l][w]=1
             lastw=None
+
+#        lastw=w
 
   print("saving...")
   pickle.dump(wcount,open("wcount.pck","wb"))

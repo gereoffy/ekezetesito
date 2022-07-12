@@ -5,11 +5,20 @@ import sys
 import pickle
 
 
+try:
+    import hunspell
+    hobj = hunspell.HunSpell('/usr/share/hunspell/hu_HU.dic', '/usr/share/hunspell/hu_HU.aff')
+except:
+    hobj=None
+    print("Hunspell lib/pip/dict not found!")
+
+
 wcount=pickle.load(open("wcount.pck","rb"))
 walias=pickle.load(open("walias.pck","rb"))
 wpairs=pickle.load(open("wpairs.pck","rb"))
 print(len(wcount),len(wpairs))
 #print(wcount["nelkulihez"],walias["nelkulihez"])
+print(wcount["meg"],walias["meg"])
 
 pairs={}
 
@@ -75,12 +84,17 @@ for l in wcount:
             cnt2+=1
             c1,w1=aa[0]
             c2,w2=aa[1]
-#            if w2==l and c1>c2*3:
-#                print(c,l,w1,"!!! %d"%(c1/c2))
-#                wordmap[l]=w1
-#            else:
-            print(c,l,aa,get_pairs(w1,w2))
-            wordmap[l]=w1+"|"+w2
+
+            # ha a 2. alak nem tul gyakori, akkor megnezzuk helyesirasellenorzovel :)
+            if c1>3*c2 and hobj and not ( hobj.spell(w2) or hobj.spell(w2[0].upper()+w2[1:]) ):
+                print("Hunspell:",w2,c1,c2)
+                if w1!=l:
+                    print(c,l,w1)
+                    wordmap[l]=w1
+            else:
+                print(c,l,aa,get_pairs(w1,w2))
+                wordmap[l]=w1+"|"+w2
+
         elif len(aa)==1:
             c1,w1=aa[0]  # 110 oszodi [(109, 'őszödi')]
             if w1!=l:
