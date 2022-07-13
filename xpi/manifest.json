@@ -1,0 +1,28 @@
+{
+
+    "manifest_version": 2,
+    "name": "ekezetesito kezikeszulek",
+    "version": "0.2",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "arpi@thot.banki.hu"
+        }
+    },
+    "description": "Ekezetet rak a vagolapra. Ennyike.",
+    "permissions": [
+        "<all_urls>",
+        "contextMenus",
+        "webRequest",
+        "clipboardRead",
+        "clipboardWrite"
+    ],
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js","wordmap.js","wordpairs.js"]
+        }
+    ]
+}
