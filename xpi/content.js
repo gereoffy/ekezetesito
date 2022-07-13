@@ -1,28 +1,23 @@
 
-//const buildKey = (text) => {
-//    const key = window.location.toString() + text;
-//    return key
-//}
+var wordmap_ok=0;
+var wordmap = {};
+var wordpairs = {};
 
+const ekezet1 = (txt) => {
 
-const ekezet2 = (txt) => {
-//    for(w of txt.split(/\s+/) ){
-//	if(w in wordmap) console.log(wordmap[w]);
-//    }
     lastw="NoNe";
     w="";
     out="";
     for(c of txt+" "){
 //        console.log(c);
-        if( (c>='0' && c<='9') || (c>='a' && c<='z') || (c>='A' && c<='Z') ){
+        if( (c>='0' && c<='9') || (c>='a' && c<='z') || (c>='A' && c<='Z') || (c.codePointAt(0)>=192 && c.codePointAt(0)<688) ){
             w+=c;
             continue;
         }
+//        console.log(c,c.codePointAt(0));
         if(w){
 //            console.log(w);
-            uj=w;
             l=w.toLowerCase();
-            //
             if(l in wordmap){
                 uj=wordmap[l];
                 us=uj.split('|');
@@ -40,9 +35,13 @@ const ekezet2 = (txt) => {
                     console.log(lastw,l,us,c1,c2,uj);
                 } else
                     console.log(l,uj);
+                lastw=uj.toLowerCase();
+                out+=uj;
+            } else {
+                lastw=l;
+                out+=w;
+//                console.log(l,"???");
             }
-            lastw=uj;
-            out+=uj;
             w="";
         }
         out+=c;
@@ -51,109 +50,44 @@ const ekezet2 = (txt) => {
     navigator.clipboard.writeText(out);
 }
 
-const ekezet = (txt) => {
-
-    console.log(txt);
-
-    fetch('https://arp.interoot.hu/list/ekezet.cgi',
-	{   method: 'POST',
-	    cache: 'no-cache',
-	    headers: {'Content-Type': 'application/json'},
-	    body: txt
-	} ).then(function(response) {
-        console.log(response.ok);
-        console.log(response.statusText);
-        if (!response.ok) { throw Error(response.statusText); }
-
-        response.text().then( function(txt2) {
-            alert(txt2);
-            navigator.clipboard.writeText(txt2);
+const ekezet2 = (txt) => {
+    if(wordmap_ok>0){
+        // DB already 
+        ekezet1(txt);
+        return;
+    }
+    const start = Date.now();
+    // load database:
+    fetch( browser.runtime.getURL("wordpairs.dat") ).then( function(response) {
+        console.log("wordpairs.json",response.statusText);
+        response.json().then( function(jsondata){
+            wordpairs=jsondata;
+            console.log("wordpairs load time:",Date.now() - start);
         } );
-    }).catch(function(error) {
-            console.log('EXCEPTION: '+error);
-    });
-
+    } );
+    fetch( browser.runtime.getURL("wordmap.dat") ).then( function(response) {
+        console.log("wordmap.json",response.statusText);
+        response.json().then( function(jsondata){
+            wordmap=jsondata;
+            wordmap_ok=1;
+            console.log("wordmap load time:",Date.now() - start);
+            ekezet1(txt);
+        } );
+    } );
 }
 
-
-const highlightSelection = (e) => {
-
-//    sel= window.getSelection ? window.getSelection() : (document.getSelection ? document.getSelection() : (document.selection ? document.selection.createRange().text : ''));
-//    alert(sel);
-
-//    alert(navigator.clipboard.readText());
-
-    navigator.clipboard.readText().then(  clipText => ekezet(clipText)   );
-
-    
-//    console.log(e);
-    
-//    var selection = new window.getSelection,
-//    const selection = document.getSelection();
-//    var selectedText = selection.toString();
-
-//    var selectedText = selection.anchorNode.data;
-//    alert(selectedText);
-
-//    var textarea = window.document.querySelector('textarea');
-//    var textarea = document.getElementById('edit-comment-body-0-value');
-    
-//    alert(textarea.value);
-//    alert(textarea.selection);
-//    console.log(textarea);
-//    console.log(textarea.selectionStart);
-//    console.log(textarea.selectionEnd);
-//    console.log(textarea.selection);
-
-//    textarea.value = textarea.value.replace(selectedText, "HelloWorld");
-//    textarea.value = "HelloWorld";
-//    textarea.innerHTML = "HelloWorld";
-//    textarea.innerText = "HelloWorld";
-
-//    const sel = document.getSelection();
-//    console.log(sel);
-
-//    const sel = window.getSelection();
-//    const sel = document.activeElement.value;
-//    const range = sel.getRangeAt(0);
-
-//    range = (document.all) ? document.selection.createRange().text : document.getSelection();
-
-//    console.log(range);
-//    alert(range);
-    
-//    sel.deleteFromDocument();
-//    sel.modify("Helloka");
-//    const wrapper = document.createElement("span");
-//    wrapper.style.backgroundColor = "#EEEE00";
-//    wrapper.style.color = "#111111";
-//    wrapper.classList.add("matt-highlight");
-//    wrapper.style.fontSize = "1.2em";
-//    range.surroundContents(wrapper);
-}
-
-//const handle = (message) => {
-//    if (message == "highlight") {
-//        highlightSelection(message);
-//    }
-//}
+// register event handlers (hotkey & context menu)
 
 const handle = (message) => {
     console.log(message);
-//    ekezet(message.ekezetesit);
     ekezet2(message.ekezetesit);
-//    alert(wordmap["meg"]);
-
-//    console.log(obj);
-//    if (message == "highlight") {
-//        highlightSelection(obj);
-//    }
 }
 
 browser.runtime.onMessage.addListener(handle);
 
 document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key == "L") {
-        highlightSelection(event);
+        navigator.clipboard.readText().then( clipText => ekezet2(clipText) );
     }
 }, false);
+
