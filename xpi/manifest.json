@@ -1,35 +1,29 @@
 {
-  "manifest_version": 2,
-  "name": "ekezetesito kezikeszulek",
-  "version": "0.5",
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "arpi@thot.banki.hu"
-    }
-  },
-  "description": "Ekezetet rak a vagolapra. Ennyike.",
-  "permissions": [
-    "contextMenus",
-    "clipboardRead",
-    "clipboardWrite"
-  ],
-  "web_accessible_resources": [
-    "wordmap.dat",
-    "wordpairs.dat"
-  ],
-  "background": {
-    "scripts": [
-      "background.js"
+
+    "manifest_version": 2,
+    "name": "ekezetesito kezikeszulek",
+    "version": "0.6",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "arpi@thot.banki.hu"
+        }
+    },
+    "description": "Ekezetet rak a vagolapra. Ennyike.",
+    "permissions": [
+        "contextMenus",
+        "clipboardRead",
+        "clipboardWrite"
+    ],
+    "web_accessible_resources": [
+      "wordmap.dat","wordpairs.dat"
+    ],
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"]
+        }
     ]
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ]
-    }
-  ]
 }

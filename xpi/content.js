@@ -1,99 +1,192 @@
 
-// traverse string->string dictionary tree structure, generated from python Dict by http://thot.banki.hu/ekezet/mktree8.py
+const hunaccent={
+    'a': "aá",
+    'e': "eé",
+    'i': "ií",
+    'o': "oóöő",
+    'u': "uúüű"
+}
+
+// differential string decoding for hungarian charset: only stores accented charmap differences in 1/2 bits (data), and reproduce it using the original string (w):
+const huncode = (w,data) => {
+    var out="";
+    var bits=0;
+    var c;
+    for(c of w){
+        if(c in hunaccent){
+            const h=hunaccent[c];
+//            console.log(h);
+            if(h.length==2){
+                out+=h[(data>>bits)&1]; // 1-bit char selector
+                bits+=1;
+            } else {
+                out+=h[(data>>bits)&3]; // 2-bit char selector
+                bits+=2;
+            }
+        } else out+=c;
+    }
+//    console.log("huncode",w,data,bits,out);
+    return out; // "HUN:"+w;
+}
+
+// traverse ascii string->string dictionary tree structure, generated from python Dict by http://thot.banki.hu/ekezet/mktree9hun.py  (use_rle=8, use_huncode=13)
 const findword2 = (data,w) => {
   var cp=0; // code position in 'w'
   var p=0;  // offset in 'data'
+  var end=data.length;
+//  console.log(size);
   while(true){
-//    console.log("findword",data,w,p);
+//    console.log("findword",w,cp,p,end-p,data[p]);
+    const flag=data[p]; // d0llllll+char[l] for utf8 (d=dict_flag, l=len) / d1exxxxx(+xxxxxxxx) for huncode (d=dict_flag, e=more_bits_flag, x=5/13 bits of binary data)
     if(cp==w.length){
         // no more characters, check leaf node:
-        if(data[p]!=0){
-          const s=data.subarray(p+1,p+1+data[p]);
-//        console.log(s);
+        if(flag&64){
+          // huncoded string
+          if(flag&32) return huncode(w, (flag&31)|(data[p+1]<<5) ); // 13 bit
+          return huncode(w, (flag&31) ); // 5 bit
+        }
+        if(flag&63){
+          // UTF8-encoded string
+          const s=data.subarray(p+1,p+1+(flag&63));
           const decoder = new TextDecoder('UTF-8');
           return decoder.decode(s);
         }
         return "";
     }
-    p+=1+data[p]; // skip len[1]+string[len]
+    if(flag&64) p+=(flag&32)?2:1; else p+=1+(flag&63); // skip huncode/utf8 string
+
     // dict?
-    if(data[p+1]==0xFF){
+    if(flag&128){
         const ws=w.substring(cp);
-        var st=data[p];
-//        console.log("dict",p,st,ws);
-        p+=2;
+//        console.log("dict",p,end-p,ws);
         const decoder = new TextDecoder('UTF-8');
-        while(st>0){
-            st-=1;
-            s=data.subarray(p+1,p+1+data[p]); p+=1+data[p];
+        while(p<end){
+            s=data.subarray(p+1,p+1+data[p]); p+=1+data[p]; // read utf8 string (key)
             if(ws==decoder.decode(s)){
+                if(data[p]&64){
+                    // huncoded string!
+                    if(data[p]&128) w=w+"|"+w;
+                    if(data[p]&32) return huncode(w, (data[p]&31)|(data[p+1]<<5) ); // 13 bit
+                    return huncode(w, (data[p]&31) ); // 5 bit
+                }
+                // utf8-encoded string
                 s=data.subarray(p+1,p+1+data[p]);
                 return decoder.decode(s);
             }
-            p+=1+data[p];
+            if(data[p]&64) p+=(data[p]&32)?2:1; else p+=1+data[p]; // skip huncode/utf8 string
         }
-        return "";
+        return ""; // not found
     }
+
     // subtree?
     const code=w.codePointAt(cp);
+    if(code>255) return ""; // non-ascii key not supported here!
     while(true){
-        //  xx yx yy yy yy  : xx=charcode (max 0xFFF) / yy=offset (max 256MB)
-        var c=data[p]+((data[p+1]&15)<<8);
-        if(c==0) return "";
+        if(p>=end) return ""; // not found
+        // read charcode (c), s-len (sl), length (l)
+//        var c=data[p]+((data[p+1]&15)<<8);
+//        var sl=data[p+1]>>4;
+        var c=data[p];   // char code
+        var l=data[p+1]; // rle code
+        p+=2;
+        // RLE-coded block length:
+        // l=0-252 -> 0-252
+        // l=253   -> 253 + read 8 bit number
+        // l=254   -> read 16 bit number
+        // l=255   -> read 24 bit number
+        if(l>=253){
+            const sl=l-252; // 1-3
+            if(sl==1) l=253+data[p]; // 1 byte length code
+            else if(sl==2) l=data[p]|(data[p+1]<<8); // 2 byte length code
+            else if(sl==3) l=data[p]|(data[p+1]<<8)|(data[p+2]<<16); // 3 byte length code
+            p+=sl;
+        }
         if(c==code){
-            p=data[p+2]|(data[p+3]<<8)|(data[p+4]<<16)|((data[p+1]>>4)<<24);
+            end=p+l;
             cp+=1; // w=w.substring(1);
             break; //return findword(data,w.substring(1),p);
         }
-        p+=5;
+        p+=l; // skip this subtree!
     }
   }
 }
 
-// traverse string->int dictionary tree structure, generated from python Dict by http://thot.banki.hu/ekezet/mktree8_p.py
+
+// traverse unicode string->int dictionary tree structure, generated from python Dict by http://thot.banki.hu/ekezet/mktree9pair.py  (use_rle=7)
 const findpair2 = (data,w) => {
   var cp=0; // code position in 'w'
   var p=0;  // offset in 'data'
+  var end=data.length;
+//  console.log(size);
   while(true){
-//    console.log("findword",data,w,p);
-    var s=data[p];
-    if(s!=0){ s|=(data[p+1]<<8)|(data[p+2]<<16)|((data[p+3]>>4)<<24); p+=3; } // tricky rle coding
-    // no more characters, check leaf node:
-    if(cp==w.length) return s; 
+//    console.log("findword",w,cp,p,end-p,data[p]);
+    const flag=data[p]; // dexxxxxx  (d=dict_flag, e=more_bits, xxxxxx=6 bits of value)
     p+=1;
+
+    // decode VALUE  6+7+8 bits
+    var value=flag&63; // first 6 bits
+    if(flag&64){ // more_bits set?
+        value|=((data[p]&127)<<6);         // additional 7 bits (total 6+7=13)
+        if(data[p]&128){ // 3 bytes?
+            p+=1; value|=(data[p]<<(6+7)); value+=64*128;       // additional 8 bits (total 6+7+8=21)
+        } else value+=64;
+        p+=1;
+    }
+    if(cp==w.length) return value;
+
     // dict?
-    if(data[p+1]==0xFF){
+    if(flag&128){
         const ws=w.substring(cp);
-        var st=data[p];
-//        console.log("dict",p,st,ws);
-        p+=2;
+//        console.log("dict",p,end-p,ws);
         const decoder = new TextDecoder('UTF-8');
-        while(st>0){
-            st-=1;
-            s=data.subarray(p+1,p+1+data[p]); p+=1+data[p];
-            if(ws==decoder.decode(s)){
-                s=data[p]|(data[p+1]<<8)|(data[p+2]<<16)|(data[p+3]<<24);
-                return s;
+        while(p<end){
+            s=data.subarray(p+1,p+1+data[p]); p+=1+data[p]; // read utf8 string (key)
+
+            // decode VALUE  7+7+8 bits
+            value=data[p]&127; // first 7 bits
+            if(data[p]&128){   // more_bits set?
+                p+=1;
+                value|=((data[p]&127)<<7);         // additional 7 bits (total 7+7=14)
+                if(data[p]&128){ // 3 bytes?
+                    p+=1; value|=(data[p]<<(7+7)); value+=128*128;       // additional 8 bits (total 7+7+8=22)
+                } else value+=128;
             }
-            p+=4;
+            p+=1;
+            if(ws==decoder.decode(s)) return value;
         }
         return 0; // not found
     }
+
     // subtree?
     const code=w.codePointAt(cp);
+    if(code>=512) return 0; // non-latin charcode key not supported here!
     while(true){
-        //  xx yx yy yy yy  : xx=charcode (max 0xFFF) / yy=offset (max 256MB)
-        var c=data[p]+((data[p+1]&15)<<8);
-        if(c==0) return 0;
+        if(p>=end) return 0; // not found
+        var c=data[p]|((data[p+1]&1)<<8);   // char code (9 bits)
+        var l=data[p+1]>>1;                 // rle code  (7 bits)
+        p+=2;
+        // RLE-coded block length:
+        // l=0-124 -> 0-124
+        // l=125   -> 125 + read 8 bit number
+        // l=126   -> read 16 bit number
+        // l=127   -> read 24 bit number
+        if(l>=125){
+            const sl=l-124; // 1-3
+            if(sl==1) l=125+data[p]; // 1 byte length code
+            else if(sl==2) l=data[p]|(data[p+1]<<8); // 2 byte length code
+            else if(sl==3) l=data[p]|(data[p+1]<<8)|(data[p+2]<<16); // 3 byte length code
+            p+=sl;
+        }
         if(c==code){
-            p=data[p+2]|(data[p+3]<<8)|(data[p+4]<<16)|((data[p+1]>>4)<<24);
+            end=p+l;
             cp+=1; // w=w.substring(1);
             break; //return findword(data,w.substring(1),p);
         }
-        p+=5;
+        p+=l; // skip this subtree!
     }
   }
 }
+
 
 
 
