@@ -8,7 +8,7 @@ confusables={}
 
 def load_unicodes(fnev):
     # try to load unicodes.map from file
-    for line in io.open(fnev,"rt",encoding="utf-8",errors="ignore"):
+    for line in open(fnev,"rt",encoding="utf-8",errors="ignore"):
         l=line.rstrip("\n\r").split("\t",1)
         confusables[ord(l[0])]=l[1]
     print("%d entries loaded from %s file" %(len(confusables),fnev))
@@ -44,6 +44,7 @@ lcnt=0
 skip=0
 skip2=0
 skip3=0
+skip4=0
 
 redlim=5000000
 redw=1
@@ -52,7 +53,7 @@ redlim2=10000000
 redw2=1
 
 def isalpha(c):
-    if c in "-_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz": return True
+    if c in "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz": return True
     if c in ',.!?:;/()[]{}„”‘’“–»«': return False
     return ord(c)>=192 and ord(c)<688  # 0x21F
 
@@ -61,7 +62,7 @@ for fnev in os.listdir("TXT"):
   for line in open("TXT/"+fnev,"rt",encoding="utf-8",errors="ignore"):
     lcnt+=1
     if (lcnt%1000)==0:
-      sys.stderr.write("\r%10d   words=%d  pairs=%d  skip=%d/%d/%d"%(lcnt,len(wcount),len(wpairs),skip,skip2,skip3))
+      sys.stderr.write("\r%10d   words=%d  pairs=%d  skip=%d/%d/%d/%d"%(lcnt,len(wcount),len(wpairs),skip,skip2,skip3,skip4))
       sys.stderr.flush()
 
       if len(wcount)>redlim:
@@ -89,6 +90,7 @@ for fnev in os.listdir("TXT"):
 
 
     line=unicodedata.normalize('NFC', line)
+#    line=unicodedata.normalize('NFKC', line)
     line=line.replace("à","á") # ehh
     line=line.replace("è","é") # ehh
     line=line.replace("î","í") # ehh
@@ -96,6 +98,9 @@ for fnev in os.listdir("TXT"):
     line=line.replace("õ","ő") # ehh
     line=line.replace("ô","ő") # ehh
     line=line.replace("û","ű") # ehh
+    line=line.replace("i̇","i") # wtf
+#    line=line.replace("ł","l") # wtf
+#    line=line.replace("ß","ss") # wtf
 
     try:
         lineb=line.encode('ASCII')
@@ -170,6 +175,10 @@ for fnev in os.listdir("TXT"):
       for w in ws if len(ws)==2 and len(ws[1])>=5 else [ww]:
 
         l=remove_accents(w)
+        if len(l)<len(w): # Wtf?
+            print("     WTF?",w,l)
+            skip4+=1
+            continue
 #        print(l,w)
         try:
             wcount[l]+=1

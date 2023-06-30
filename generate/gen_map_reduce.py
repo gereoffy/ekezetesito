@@ -3,7 +3,7 @@
 
 import sys
 import pickle
-
+import json
 
 try:
     import hunspell
@@ -105,3 +105,6 @@ for l in wcount:
 print(cnt2,cnt,len(wcount))
 pickle.dump(wordmap,open("wordmap.pck","wb"))
 pickle.dump(wpairs,open("wordpairs.pck","wb"))
+
+json.dump(wordmap,open("wordmap.json","wt",encoding="utf-8"),ensure_ascii=False,indent=2)
+json.dump(wpairs,open("wordpairs.json","wt",encoding="utf-8"),ensure_ascii=False,indent=2)
